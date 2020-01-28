@@ -2,8 +2,7 @@
 
 import requests
 import os
-from datetime import datetime 
-
+from datetime import datetime
 
 
 def refresh_access_token(client_id, client_secret, refresh_token):
