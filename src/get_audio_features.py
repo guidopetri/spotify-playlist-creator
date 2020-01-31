@@ -19,7 +19,7 @@ class GetSavedTracks(Task):
         import pickle
         import time
 
-        self.output.makedirs()
+        self.output().makedirs()
 
         access_token = check_for_refresh()
 
