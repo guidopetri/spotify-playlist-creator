@@ -47,7 +47,7 @@ class GetSavedTracks(Task):
             songs.extend(data['items'])
             url = None  # currently testing
 
-        with self.output().open() as f:
+        with self.output().open('w') as f:
             pickle.dump(songs, f, protocol=-1)
 
 
