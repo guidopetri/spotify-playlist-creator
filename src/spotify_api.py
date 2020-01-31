@@ -1,14 +1,12 @@
 #! /usr/bin/env python3
 
 import requests
-import os
 from datetime import datetime
+import configparser
 
 
-def refresh_access_token(client_id, client_secret):
+def refresh_access_token(client_id, client_secret, refresh_token):
     auth_token_url = 'https://accounts.spotify.com/api/token'
-
-    refresh_token = os.environ['SPOTIFY_REFRESH_TOKEN']
 
     payload = {'client_id': client_id,
                'client_secret': client_secret,
@@ -26,27 +24,36 @@ def refresh_access_token(client_id, client_secret):
         ts = datetime.strptime(r.headers['date'],
                                '%a, %d %b %Y %X %Z').strftime('%s')
 
-        # update access/refresh token
-        if int(ts) > int(os.environ.get('SPOTIFY_REFRESH_TIME', 0)):
-            os.environ['SPOTIFY_ACCESS_TOKEN'] = access_token
-            os.environ['SPOTIFY_REFRESH_TOKEN'] = refresh_token
-            os.environ['SPOTIFY_REFRESH_TIME'] = ts
+        config = configparser.ConfigParser()
+        config.read('../secrets.cfg')
+
+        # here there might be concurrency issues if there are ever multiple
+        # workers involved...
+
+        config['spotify_secrets']
+        config['spotify_secrets']['SPOTIFY_ACCESS_TOKEN'] = access_token
+        config['spotify_secrets']['SPOTIFY_REFRESH_TOKEN'] = refresh_token
+        config['spotify_secrets']['SPOTIFY_REFRESH_TIME'] = ts
+
+        with open('../secrets.cfg', 'w') as f:
+            config.write(f)
     else:
         raise requests.HTTPError('Error: response: {}'.format(r.text))
 
-    return
+    return access_token
 
 
 def check_for_refresh():
-    refresh_time = int(os.environ.get('SPOTIFY_REFRESH_TIME', 0))
+    config = configparser.ConfigParser()
+    config.read('../secrets.cfg')
+
+    secrets = config['spotify_secrets']
+
+    refresh_time = int(secrets['SPOTIFY_REFRESH_TIME'])
     current_time = int(datetime.now().strftime('%s'))
 
     if current_time - refresh_time > 3540:
-        import json
+        access_token = refresh_access_token(secrets['client_id'],
+                                            secrets['client_secret'])
 
-        with open('secrets.cfg', 'r') as f:
-            secrets = json.load(f)
-
-        refresh_access_token(secrets['client_id'], secrets['client_secret'])
-
-    return os.environ['SPOTIFY_ACCESS_TOKEN']
+    return access_token
