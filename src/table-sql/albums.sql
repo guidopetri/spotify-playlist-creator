@@ -7,6 +7,5 @@ album_type text not null,
 release_year smallint, --unclear if this is available everywhere
 release_month smallint, --definitely not available everywhere
 release_day smallint, --ditto
-popularity smallint,
 label text
 );
