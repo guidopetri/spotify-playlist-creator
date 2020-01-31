@@ -56,12 +56,14 @@ def check_for_refresh():
     config.read(filepath)
 
     secrets = config['spotify_secrets']
+    access_token = secrets['SPOTIFY_ACCESS_TOKEN']
 
     refresh_time = int(secrets['SPOTIFY_REFRESH_TIME'])
     current_time = int(datetime.now().strftime('%s'))
 
     if current_time - refresh_time > 3540:
         access_token = refresh_access_token(secrets['client_id'],
-                                            secrets['client_secret'])
+                                            secrets['client_secret'],
+                                            secrets['SPOTIFY_REFRESH_TOKEN'])
 
     return access_token
