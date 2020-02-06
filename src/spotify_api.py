@@ -58,7 +58,7 @@ def check_for_refresh():
     access_token = secrets['SPOTIFY_ACCESS_TOKEN']
 
     refresh_time = int(secrets['SPOTIFY_REFRESH_TIME'])
-    current_time = int(datetime.now().strftime('%s'))
+    current_time = int(datetime.utcnow().strftime('%s'))
 
     if current_time - refresh_time > 3540:
         access_token = refresh_access_token(secrets['client_id'],
