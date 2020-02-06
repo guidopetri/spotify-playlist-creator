@@ -34,7 +34,6 @@ def refresh_access_token(client_id, client_secret, refresh_token):
         # here there might be concurrency issues if there are ever multiple
         # workers involved...
 
-        config['spotify_secrets']
         config['spotify_secrets']['SPOTIFY_ACCESS_TOKEN'] = access_token
         config['spotify_secrets']['SPOTIFY_REFRESH_TOKEN'] = refresh_token
         config['spotify_secrets']['SPOTIFY_REFRESH_TIME'] = ts

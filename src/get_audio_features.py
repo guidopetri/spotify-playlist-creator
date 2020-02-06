@@ -11,15 +11,18 @@ class GetSavedTracks(Task):
     def output(self):
         import os
 
-        file_location = '~/Temp/luigi/spotify/saved_songs.pckl'
-        return LocalTarget(os.path.expanduser(file_location), format=Nop)
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return [LocalTarget(file_location.format('saved_songs'), format=Nop),
+                LocalTarget(file_location.format('mini_albums'), format=Nop),
+                LocalTarget(file_location.format('mini_artists'), format=Nop),
+                ]
 
     def run(self):
         from requests import get
         import pickle
         import time
 
-        self.output().makedirs()
+        [x.makedirs() for x in self.output()]
 
         access_token = check_for_refresh()
 
@@ -47,8 +50,20 @@ class GetSavedTracks(Task):
             songs.extend(data['items'])
             url = None  # currently testing
 
-        with self.output().open('w') as f:
+        albums = set(song['track']['album']['id']
+                     for song in songs)
+
+        artists = set(artist['id'] for song in songs
+                      for artist in song['track']['artists'])
+
+        with self.output()[0].open('w') as f:
             pickle.dump(songs, f, protocol=-1)
+
+        with self.output()[1].open('w') as f:
+            pickle.dump(albums, f, protocol=-1)
+
+        with self.output()[2].open('w') as f:
+            pickle.dump(artists, f, protocol=-1)
 
 
 # class GetAudioFeatures(Task):
