@@ -121,8 +121,8 @@ class GetArtists(Task):
         full_artists = DataFrame(artist_data,
                                  columns=['id', 'name', 'uri', 'genre'])
 
-        with self.output().open('w') as f:
-            pickle.dump(full_artists, f, protocol=-1)
+        with self.output().temporary_path() as temp_path:
+            full_artists.to_pickle(temp_path, compression=None)
 
 
 @requires(GetArtists)
@@ -145,8 +145,8 @@ class ExplodeGenresArtists(Task):
         artist_genres = full_artists[['id', 'genre']]
         artist_genres = artist_genres.explode('genre')
 
-        with self.output().open('w') as f:
-            pickle.dump(artist_genres, f, protocol=-1)
+        with self.output().temporary_path() as temp_path:
+            artist_genres.to_pickle(temp_path, compression=None)
 
 
 @requires(GetArtists)
@@ -168,8 +168,8 @@ class CleanArtists(Task):
 
         full_artists.drop(['genre'], axis=1, inplace=True)
 
-        with self.output().open('w') as f:
-            pickle.dump(full_artists, f, protocol=-1)
+        with self.output().temporary_path() as temp_path:
+            full_artists.to_pickle(temp_path, compression=None)
 
 
 @requires(GetSavedTracks)
@@ -241,8 +241,8 @@ class GetAlbums(Task):
                                          'artists',
                                          ])
 
-        with self.output().open('w') as f:
-            pickle.dump(full_albums, f, protocol=-1)
+        with self.output().temporary_path() as temp_path:
+            full_albums.to_pickle(temp_path, compression=None)
 
 
 @requires(GetAlbums)
@@ -265,8 +265,8 @@ class ExplodeGenresAlbums(Task):
         album_genres = full_albums[['id', 'genre']]
         album_genres = album_genres.explode('genre')
 
-        with self.output().open('w') as f:
-            pickle.dump(album_genres, f, protocol=-1)
+        with self.output().temporary_path() as temp_path:
+            album_genres.to_pickle(temp_path, compression=None)
 
 
 @requires(GetAlbums)
@@ -290,8 +290,8 @@ class ExplodeArtistsAlbums(Task):
         album_artists = album_artists.explode('artists')
         album_artists.rename(columns={'artists': 'artist'}, inplace=True)
 
-        with self.output().open('w') as f:
-            pickle.dump(album_artists, f, protocol=-1)
+        with self.output().temporary_path() as temp_path:
+            album_artists.to_pickle(temp_path, compression=None)
 
 
 @requires(GetAlbums)
@@ -321,8 +321,8 @@ class CleanAlbums(Task):
         full_albums['release_month'] = release_info[1]
         full_albums['release_day'] = release_info[2]
 
-        with self.output().open('w') as f:
-            pickle.dump(full_albums, f, protocol=-1)
+        with self.output().temporary_path() as temp_path:
+            full_albums.to_pickle(temp_path, compression=None)
 
 # class GetAudioFeatures(Task):
 
