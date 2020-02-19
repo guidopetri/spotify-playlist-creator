@@ -85,7 +85,7 @@ class GetArtists(Task):
         self.output().makedirs()
 
         with self.input()[2].open('r') as f:
-            artists = pickle.load(f)
+            short_artists = pickle.load(f)
 
         access_token = check_for_refresh()
 
@@ -93,10 +93,10 @@ class GetArtists(Task):
         url = 'https://api.spotify.com/v1/artists'
 
         artists = []
-        grouped = chunked(artists, 50)
+        grouped = chunked(short_artists, 50)
 
         for group in grouped:
-            params = {'ids': ','.join(artist for artist in artists)}
+            params = {'ids': ','.join(artist for artist in group)}
 
             for attempt in range(2):
                 access_token = check_for_refresh()
