@@ -303,6 +303,7 @@ class CleanAlbums(Task):
 
     def run(self):
         import pickle
+        from pandas import concat
 
         self.output().makedirs()
 
@@ -311,16 +312,18 @@ class CleanAlbums(Task):
 
         full_albums.drop(['genre', 'artist'], axis=1, inplace=True)
 
-        regex_pat = r'^(\d{4})?-?(\d{2})?-?(\d{2})?$'
+        regex_pat = (r'^(?P<release_year>\d{4})?-?'
+                     r'(?P<release_month>\d{2})?-?'
+                     r'(?P<release_day>\d{2})?$')
 
         release_info = full_albums['release_date'].str.extractall(regex_pat)
 
-        full_albums['release_year'] = release_info[0]
-        full_albums['release_month'] = release_info[1]
-        full_albums['release_day'] = release_info[2]
+        release_info.index = release_info.index.droplevel(1)
+
+        clean_albums = concat([full_albums, release_info], axis=1)
 
         with self.output().temporary_path() as temp_path:
-            full_albums.to_pickle(temp_path, compression=None)
+            clean_albums.to_pickle(temp_path, compression=None)
 
 # class GetAudioFeatures(Task):
 
