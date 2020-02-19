@@ -236,8 +236,8 @@ class GetAlbums(Task):
                                          'album_type',
                                          'release_date',
                                          'label',
-                                         'genres',
-                                         'artists',
+                                         'genre',
+                                         'artist',
                                          ])
 
         with self.output().temporary_path() as temp_path:
@@ -285,9 +285,8 @@ class ExplodeArtistsAlbums(Task):
         with self.input().open('r') as f:
             full_albums = pickle.load(f)
 
-        album_artists = full_albums[['id', 'artists']]
-        album_artists = album_artists.explode('artists')
-        album_artists.rename(columns={'artists': 'artist'}, inplace=True)
+        album_artists = full_albums[['id', 'artist']]
+        album_artists = album_artists.explode('artist')
 
         with self.output().temporary_path() as temp_path:
             album_artists.to_pickle(temp_path, compression=None)
@@ -310,7 +309,7 @@ class CleanAlbums(Task):
         with self.input().open('r') as f:
             full_albums = pickle.load(f)
 
-        full_albums.drop(['genre', 'artists'], axis=1, inplace=True)
+        full_albums.drop(['genre', 'artist'], axis=1, inplace=True)
 
         regex_pat = r'^(\d{4})?-?(\d{2})?-?(\d{2})?$'
 
