@@ -2,6 +2,7 @@
 
 from luigi import Task, LocalTarget
 from luigi.format import Nop
+from luigi.util import requires
 # from postgres_templates import TransactionFactTable, CopyWrapper
 from spotify_api import check_for_refresh
 
@@ -65,6 +66,72 @@ class GetSavedTracks(Task):
         with self.output()[2].open('w') as f:
             pickle.dump(artists, f, protocol=-1)
 
+
+@requires(GetSavedTracks)
+class GetArtists(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return [LocalTarget(file_location.format('full_artists'), format=Nop),
+                LocalTarget(file_location.format('artist_genres'), format=Nop)]
+
+    def run(self):
+        from requests import get
+        from more_itertools import chunked
+        from pandas import DataFrame
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input()[2].open('r') as f:
+            artists = pickle.load(f)
+
+        access_token = check_for_refresh()
+
+        headers = {'Authorization': 'Bearer {}'.format(access_token)}
+        url = 'https://api.spotify.com/v1/artists'
+
+        artists = []
+        grouped = chunked(artists, 50)
+
+        for group in grouped:
+            params = {'ids': ','.join(artist for artist in artists)}
+
+            for attempt in range(2):
+                access_token = check_for_refresh()
+
+                r = get(url, params=params, headers=headers)
+
+                if r.status_code == 200:
+                    break
+            else:  # no break
+                print('Error accessing url: {}'.format(url))
+                r.raise_for_status()
+
+            data = r.json()
+            artists.extend(data['artists'])
+
+        artist_data = [(artist['id'],
+                        artist['name'],
+                        artist['uri'],
+                        artist['genres'])
+                       for artist in artists]
+
+        full_artists = DataFrame(artist_data,
+                                 columns=['id', 'name', 'uri', 'genre'])
+
+        artist_genres = full_artists[['id', 'genre']]
+        artist_genres = artist_genres.explode('genre')
+
+        full_artists.drop('genre', axis=1, inplace=True)
+
+        with self.output()[0].open('w') as f:
+            pickle.dump(full_artists, f, protocol=-1)
+
+        with self.output()[1].open('w') as f:
+            pickle.dump(artist_genres, f, protocol=-1)
 
 # class GetAudioFeatures(Task):
 
