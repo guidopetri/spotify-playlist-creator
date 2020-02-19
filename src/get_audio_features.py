@@ -126,7 +126,7 @@ class GetArtists(Task):
 
 
 @requires(GetArtists)
-class ExplodeGenres(Task):
+class ExplodeGenresArtists(Task):
 
     def output(self):
         import os
@@ -166,7 +166,7 @@ class CleanArtists(Task):
         with self.input().open('r') as f:
             full_artists = pickle.load(f)
 
-        full_artists.drop('genre', axis=1, inplace=True)
+        full_artists.drop(['genre'], axis=1, inplace=True)
 
         with self.output().open('w') as f:
             pickle.dump(full_artists, f, protocol=-1)
@@ -208,8 +208,8 @@ class ArtistList(TransactionFactTable):
     pass
 
 
-@requires(ExplodeGenres)
-class GenreList(TransactionFactTable):
+@requires(ExplodeGenresArtists)
+class GenreXArtistList(TransactionFactTable):
     pass
 
 
@@ -227,8 +227,8 @@ class CopyTracks(CopyWrapper):
                             ],
              'date_cols':  [],
              'merge_cols': HashableDict()},
-            {'table_type': GenreList,
-             'fn': ExplodeGenres,
+            {'table_type': GenreXArtistList,
+             'fn': ExplodeGenresArtists,
              'table': 'artist_genres',
              'columns': ['artist_id',
                          'genre_name',
