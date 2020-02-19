@@ -2,8 +2,8 @@
 
 from luigi import Task, LocalTarget
 from luigi.format import Nop
-from luigi.util import requires
-# from postgres_templates import TransactionFactTable, CopyWrapper
+from luigi.util import requires, inherits
+from postgres_templates import TransactionFactTable, CopyWrapper, HashableDict
 from spotify_api import check_for_refresh
 
 
@@ -74,8 +74,7 @@ class GetArtists(Task):
         import os
 
         file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
-        return [LocalTarget(file_location.format('full_artists'), format=Nop),
-                LocalTarget(file_location.format('artist_genres'), format=Nop)]
+        return LocalTarget(file_location.format('full_artists'), format=Nop)
 
     def run(self):
         from requests import get
@@ -122,16 +121,55 @@ class GetArtists(Task):
         full_artists = DataFrame(artist_data,
                                  columns=['id', 'name', 'uri', 'genre'])
 
+        with self.output().open('w') as f:
+            pickle.dump(full_artists, f, protocol=-1)
+
+
+@requires(GetArtists)
+class ExplodeGenres(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('artist_genres'), format=Nop)
+
+    def run(self):
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input().open('r') as f:
+            full_artists = pickle.load(f)
+
         artist_genres = full_artists[['id', 'genre']]
         artist_genres = artist_genres.explode('genre')
 
+        with self.output().open('w') as f:
+            pickle.dump(artist_genres, f, protocol=-1)
+
+
+@requires(GetArtists)
+class CleanArtists(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('clean_artists'), format=Nop)
+
+    def run(self):
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input().open('r') as f:
+            full_artists = pickle.load(f)
+
         full_artists.drop('genre', axis=1, inplace=True)
 
-        with self.output()[0].open('w') as f:
+        with self.output().open('w') as f:
             pickle.dump(full_artists, f, protocol=-1)
-
-        with self.output()[1].open('w') as f:
-            pickle.dump(artist_genres, f, protocol=-1)
 
 # class GetAudioFeatures(Task):
 
@@ -163,3 +201,63 @@ class GetArtists(Task):
 
 #     def output(self):
 #         pass
+
+
+@requires(CleanArtists)
+class ArtistList(TransactionFactTable):
+    pass
+
+
+@requires(ExplodeGenres)
+class GenreList(TransactionFactTable):
+    pass
+
+
+@inherits(GetArtists)
+class CopyTracks(CopyWrapper):
+
+    jobs = [{'table_type': ArtistList,
+             'fn':         CleanArtists,
+             'table':      'artists',
+             'columns':    ['id',
+                            'name',
+                            'uri',
+                            ],
+             'id_cols':    ['id',
+                            ],
+             'date_cols':  [],
+             'merge_cols': HashableDict()},
+            {'table_type': GenreList,
+             'fn': ExplodeGenres,
+             'table': 'artist_genres',
+             'columns': ['artist_id',
+                         'genre_name',
+                         ],
+             'id_cols': ['artist_id',
+                         'genre_name',
+                         ],
+             'date_cols': [],
+             'merge_cols': HashableDict()},
+            # {'table_type': MoveClocks,
+            #  'fn': ExplodeClocks,
+            #  'table': 'game_clocks',
+            #  'columns': ['game_link',
+            #              'half_move',
+            #              'clock',
+            #              ],
+            #  'id_cols': ['game_link',
+            #              'half_move'],
+            #  'date_cols': [],
+            #  'merge_cols': HashableDict()},
+            # {'table_type': MoveList,
+            #  'fn': ExplodeMoves,
+            #  'table': 'game_moves',
+            #  'columns': ['game_link',
+            #              'half_move',
+            #              'move',
+            #              ],
+            #  'id_cols': ['game_link',
+            #              'half_move'],
+            #  'date_cols': [],
+            #  'merge_cols': HashableDict()},
+            ]
