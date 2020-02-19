@@ -223,7 +223,6 @@ class GetAlbums(Task):
                        'US' in album['available_markets'],
                        album['album_type'],
                        album['release_date'],
-                       album['release_date_precision'],
                        album['label'],
                        album['genres'],
                        [artist['id'] for artist in album['artists']])
