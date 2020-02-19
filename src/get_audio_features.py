@@ -171,6 +171,159 @@ class CleanArtists(Task):
         with self.output().open('w') as f:
             pickle.dump(full_artists, f, protocol=-1)
 
+
+@requires(GetSavedTracks)
+class GetAlbums(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('full_albums'), format=Nop)
+
+    def run(self):
+        from requests import get
+        from more_itertools import chunked
+        from pandas import DataFrame
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input()[1].open('r') as f:
+            short_albums = pickle.load(f)
+
+        access_token = check_for_refresh()
+
+        headers = {'Authorization': 'Bearer {}'.format(access_token)}
+        url = 'https://api.spotify.com/v1/albums'
+
+        albums = []
+        grouped = chunked(short_albums, 20)
+
+        for group in grouped:
+            params = {'ids': ','.join(album for album in group)}
+
+            for attempt in range(2):
+                access_token = check_for_refresh()
+
+                r = get(url, params=params, headers=headers)
+
+                if r.status_code == 200:
+                    break
+            else:  # no break
+                print('Error accessing url: {}'.format(url))
+                r.raise_for_status()
+
+            data = r.json()
+            albums.extend(data['albums'])
+
+        album_data = [(album['id'],
+                       album['name'],
+                       album['uri'],
+                       'US' in album['available_markets'],
+                       album['album_type'],
+                       album['release_date'],
+                       album['release_date_precision'],
+                       album['label'],
+                       album['genres'],
+                       [artist['id'] for artist in album['artists']])
+                      for album in albums]
+
+        full_albums = DataFrame(album_data,
+                                columns=['id',
+                                         'name',
+                                         'uri',
+                                         'available_in_us',
+                                         'album_type',
+                                         'release_date',
+                                         'label',
+                                         'genres',
+                                         'artists',
+                                         ])
+
+        with self.output().open('w') as f:
+            pickle.dump(full_albums, f, protocol=-1)
+
+
+@requires(GetAlbums)
+class ExplodeGenresAlbums(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('album_genres'), format=Nop)
+
+    def run(self):
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input().open('r') as f:
+            full_albums = pickle.load(f)
+
+        album_genres = full_albums[['id', 'genre']]
+        album_genres = album_genres.explode('genre')
+
+        with self.output().open('w') as f:
+            pickle.dump(album_genres, f, protocol=-1)
+
+
+@requires(GetAlbums)
+class ExplodeArtistsAlbums(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('album_artists'), format=Nop)
+
+    def run(self):
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input().open('r') as f:
+            full_albums = pickle.load(f)
+
+        album_artists = full_albums[['id', 'artists']]
+        album_artists = album_artists.explode('artists')
+        album_artists.rename(columns={'artists': 'artist'}, inplace=True)
+
+        with self.output().open('w') as f:
+            pickle.dump(album_artists, f, protocol=-1)
+
+
+@requires(GetAlbums)
+class CleanAlbums(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('clean_albums'), format=Nop)
+
+    def run(self):
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input().open('r') as f:
+            full_albums = pickle.load(f)
+
+        full_albums.drop(['genre', 'artists'], axis=1, inplace=True)
+
+        regex_pat = r'^(\d{4})?-?(\d{2})?-?(\d{2})?$'
+
+        release_info = full_albums['release_date'].str.extractall(regex_pat)
+
+        full_albums['release_year'] = release_info[0]
+        full_albums['release_month'] = release_info[1]
+        full_albums['release_day'] = release_info[2]
+
+        with self.output().open('w') as f:
+            pickle.dump(full_albums, f, protocol=-1)
+
 # class GetAudioFeatures(Task):
 
 #     auth_token = Parameter(visibility=ParameterVisibility.PRIVATE,
@@ -213,6 +366,21 @@ class GenreXArtistList(TransactionFactTable):
     pass
 
 
+@requires(CleanAlbums)
+class AlbumList(TransactionFactTable):
+    pass
+
+
+@requires(ExplodeGenresAlbums)
+class GenreXAlbumList(TransactionFactTable):
+    pass
+
+
+@requires(ExplodeArtistsAlbums)
+class ArtistXAlbumList(TransactionFactTable):
+    pass
+
+
 @inherits(GetArtists)
 class CopyTracks(CopyWrapper):
 
@@ -237,6 +405,45 @@ class CopyTracks(CopyWrapper):
                          'genre_name',
                          ],
              'date_cols': [],
+             'merge_cols': HashableDict()},
+            {'table_type': ArtistXAlbumList,
+             'fn': ExplodeArtistsAlbums,
+             'table': 'albums_x_artists',
+             'columns': ['album_id',
+                         'artist_id',
+                         ],
+             'id_cols': ['album_id',
+                         'artist_id',
+                         ],
+             'date_cols': [],
+             'merge_cols': HashableDict()},
+            {'table_type': GenreXAlbumList,
+             'fn': ExplodeGenresAlbums,
+             'table': 'album_genres',
+             'columns': ['album_id',
+                         'genre_name',
+                         ],
+             'id_cols': ['album_id',
+                         'genre_name',
+                         ],
+             'date_cols': [],
+             'merge_cols': HashableDict()},
+            {'table_type': AlbumList,
+             'fn':         CleanAlbums,
+             'table':      'albums',
+             'columns':    ['id',
+                            'name',
+                            'uri',
+                            'available_in_us',
+                            'album_type',
+                            'release_year',
+                            'release_month',
+                            'release_day',
+                            'label'
+                            ],
+             'id_cols':    ['id',
+                            ],
+             'date_cols':  [],
              'merge_cols': HashableDict()},
             # {'table_type': MoveClocks,
             #  'fn': ExplodeClocks,
