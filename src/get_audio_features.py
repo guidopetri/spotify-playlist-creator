@@ -325,36 +325,153 @@ class CleanAlbums(Task):
         with self.output().temporary_path() as temp_path:
             clean_albums.to_pickle(temp_path, compression=None)
 
-# class GetAudioFeatures(Task):
 
-#     auth_token = Parameter(visibility=ParameterVisibility.PRIVATE,
-#                            significant=False)
+@requires(GetSavedTracks)
+class GetAudioFeatures(Task):
 
-#     def run(self):
+    def output(self):
+        import os
 
-#         songs = []
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('audio_features'), format=Nop)
 
-#         track_features_url = 'https://api.spotify.com/v1/audio-features/'
+    def run(self):
+        from requests import get
+        from more_itertools import chunked
+        from pandas import DataFrame
+        import pickle
 
-#         headers = {'Authorization': 'Bearer {}'.format(self.auth_token),
-#                    }
+        self.output().makedirs()
 
-#         params = {'ids': ','.join([x['track']['id']
-#                                    for x in songs['items']]),
-#                   }
+        with self.input()[0].open('r') as f:
+            songs = pickle.load(f)
 
-#         r = requests.get(track_features_url,
-#                          headers=headers,
-#                          params=params,
-#                          )
+        access_token = check_for_refresh()
 
-#         if r.status_code != 200:
-#             print('error')
+        headers = {'Authorization': 'Bearer {}'.format(access_token)}
+        url = 'https://api.spotify.com/v1/audio-features/'
 
-#         features = r.json()['audio_features']
+        audio_features = []
+        grouped = chunked(songs, 100)
 
-#     def output(self):
-#         pass
+        for group in grouped:
+            params = {'ids': ','.join(song['track']['id'] for song in group)}
+
+            for attempt in range(2):
+                access_token = check_for_refresh()
+
+                r = get(url, params=params, headers=headers)
+
+                if r.status_code == 200:
+                    break
+            else:  # no break
+                print('Error accessing url: {}'.format(url))
+                r.raise_for_status()
+
+            data = r.json()
+            audio_features.extend(data['audio_features'])
+
+        audio_data = [(song['id'],
+                       song['acousticness'],
+                       song['danceability'],
+                       song['energy'],
+                       song['instrumentalness'],
+                       song['key'],
+                       song['liveness'],
+                       song['loudness'],
+                       song['mode'],
+                       song['speechiness'],
+                       song['tempo'],
+                       song['time_signature'],
+                       song['valence'])
+                      for song in audio_features]
+
+        audio_data_df = DataFrame(audio_data,
+                                  columns=['id',
+                                           'acousticness',
+                                           'danceability',
+                                           'energy',
+                                           'instrumentalness',
+                                           'key',
+                                           'liveness',
+                                           'loudness',
+                                           'mode',
+                                           'speechiness',
+                                           'tempo',
+                                           'time_signature',
+                                           'valence'])
+
+        with self.output().temporary_path() as temp_path:
+            audio_data_df.to_pickle(temp_path, compression=None)
+
+
+@requires(GetSavedTracks)
+class CleanTracks(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('clean_tracks'), format=Nop)
+
+    def run(self):
+        import pickle
+        from pandas import DataFrame
+
+        self.output().makedirs()
+
+        with self.input()[0].open('r') as f:
+            songs = pickle.load(f)
+
+        songs = [song['track'] for song in songs]
+
+        song_data = [(song['id'],
+                      song['name'],
+                      'US' in song['available_markets'],
+                      song['duration_ms'],
+                      song['explicit'],
+                      song['uri'],
+                      song['preview_url'])
+                     for song in songs]
+
+        song_data_df = DataFrame(song_data,
+                                 columns=['id',
+                                          'name',
+                                          'available_in_us',
+                                          'duration_ms',
+                                          'explicit',
+                                          'uri',
+                                          'preview_url'])
+
+        with self.output().temporary_path() as temp_path:
+            song_data_df.to_pickle(temp_path, compression=None)
+
+
+@requires(CleanTracks, GetAudioFeatures)
+class MergeTracks(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('complete_tracks'), format=Nop)
+
+    def run(self):
+        import pickle
+        from pandas import merge
+
+        self.output().makedirs()
+
+        with self.input()[0].open('r') as f:
+            songs = pickle.load(f)
+
+        with self.input()[1].open('r') as f:
+            features = pickle.load(f)
+
+        tracks = merge(songs, features, on='id')
+
+        with self.output().temporary_path() as temp_path:
+            tracks.to_pickle(temp_path, compression=None)
 
 
 @requires(CleanArtists)
