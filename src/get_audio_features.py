@@ -499,6 +499,11 @@ class ArtistXAlbumList(TransactionFactTable):
     pass
 
 
+@requires(MergeTracks)
+class SavedTracksList(TransactionFactTable):
+    pass
+
+
 @inherits(GetArtists)
 class CopyTracks(CopyWrapper):
 
@@ -563,26 +568,30 @@ class CopyTracks(CopyWrapper):
                             ],
              'date_cols':  [],
              'merge_cols': HashableDict()},
-            # {'table_type': MoveClocks,
-            #  'fn': ExplodeClocks,
-            #  'table': 'game_clocks',
-            #  'columns': ['game_link',
-            #              'half_move',
-            #              'clock',
-            #              ],
-            #  'id_cols': ['game_link',
-            #              'half_move'],
-            #  'date_cols': [],
-            #  'merge_cols': HashableDict()},
-            # {'table_type': MoveList,
-            #  'fn': ExplodeMoves,
-            #  'table': 'game_moves',
-            #  'columns': ['game_link',
-            #              'half_move',
-            #              'move',
-            #              ],
-            #  'id_cols': ['game_link',
-            #              'half_move'],
-            #  'date_cols': [],
-            #  'merge_cols': HashableDict()},
+            {'table_type': SavedTracksList,
+             'fn': MergeTracks,
+             'table': 'tracks',
+             'columns': ['id',
+                         'name',
+                         'available_in_us',
+                         'duration_ms',
+                         'explicit',
+                         'uri',
+                         'preview_url',
+                         'acousticness',
+                         'danceability',
+                         'energy',
+                         'instrumentalness',
+                         'key',
+                         'liveness',
+                         'loudness',
+                         'mode',
+                         'speechiness',
+                         'tempo',
+                         'time_signature',
+                         'valence',
+                         ],
+             'id_cols': ['id'],
+             'date_cols': [],
+             'merge_cols': HashableDict()},
             ]
