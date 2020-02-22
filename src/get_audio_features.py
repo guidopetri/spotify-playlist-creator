@@ -67,7 +67,7 @@ class GetSavedTracks(Task):
             pickle.dump(artists, f, protocol=-1)
 
 
-@requires(GetSavedTracks)
+@requires(GetSavedTracks, ExplodeArtistsAlbums)
 class GetArtists(Task):
 
     def output(self):
@@ -79,7 +79,7 @@ class GetArtists(Task):
     def run(self):
         from requests import get
         from more_itertools import chunked
-        from pandas import DataFrame
+        from pandas import DataFrame, read_pickle
         import pickle
 
         self.output().makedirs()
@@ -87,10 +87,15 @@ class GetArtists(Task):
         with self.input()[2].open('r') as f:
             short_artists = pickle.load(f)
 
+        with self.input()[3].open('r') as f:
+            artist_x_album = read_pickle(f, compression=None)
+
         access_token = check_for_refresh()
 
         headers = {'Authorization': 'Bearer {}'.format(access_token)}
         url = 'https://api.spotify.com/v1/artists'
+
+        short_artists.update(artist_x_album['artist_id'].values)
 
         artists = []
         grouped = chunked(short_artists, 50)
