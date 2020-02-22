@@ -144,6 +144,7 @@ class ExplodeGenresArtists(Task):
 
         artist_genres = full_artists[['id', 'genre']]
         artist_genres = artist_genres.explode('genre')
+        artist_genres.columns = ['artist_id', 'genre_name']
 
         with self.output().temporary_path() as temp_path:
             artist_genres.to_pickle(temp_path, compression=None)
@@ -263,6 +264,7 @@ class ExplodeGenresAlbums(Task):
 
         album_genres = full_albums[['id', 'genre']]
         album_genres = album_genres.explode('genre')
+        album_genres.columns = ['album_id', 'genre_name']
 
         with self.output().temporary_path() as temp_path:
             album_genres.to_pickle(temp_path, compression=None)
@@ -287,6 +289,7 @@ class ExplodeArtistsAlbums(Task):
 
         album_artists = full_albums[['id', 'artist']]
         album_artists = album_artists.explode('artist')
+        album_artists.columns = ['album_id', 'artist_id']
 
         with self.output().temporary_path() as temp_path:
             album_artists.to_pickle(temp_path, compression=None)
