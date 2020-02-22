@@ -67,6 +67,31 @@ class GetSavedTracks(Task):
             pickle.dump(artists, f, protocol=-1)
 
 
+@requires(GetAlbums)
+class ExplodeArtistsAlbums(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('album_artists'), format=Nop)
+
+    def run(self):
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input().open('r') as f:
+            full_albums = pickle.load(f)
+
+        album_artists = full_albums[['id', 'artist']]
+        album_artists = album_artists.explode('artist')
+        album_artists.columns = ['album_id', 'artist_id']
+
+        with self.output().temporary_path() as temp_path:
+            album_artists.to_pickle(temp_path, compression=None)
+
+
 @requires(GetSavedTracks, ExplodeArtistsAlbums)
 class GetArtists(Task):
 
@@ -273,31 +298,6 @@ class ExplodeGenresAlbums(Task):
 
         with self.output().temporary_path() as temp_path:
             album_genres.to_pickle(temp_path, compression=None)
-
-
-@requires(GetAlbums)
-class ExplodeArtistsAlbums(Task):
-
-    def output(self):
-        import os
-
-        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
-        return LocalTarget(file_location.format('album_artists'), format=Nop)
-
-    def run(self):
-        import pickle
-
-        self.output().makedirs()
-
-        with self.input().open('r') as f:
-            full_albums = pickle.load(f)
-
-        album_artists = full_albums[['id', 'artist']]
-        album_artists = album_artists.explode('artist')
-        album_artists.columns = ['album_id', 'artist_id']
-
-        with self.output().temporary_path() as temp_path:
-            album_artists.to_pickle(temp_path, compression=None)
 
 
 @requires(GetAlbums)
