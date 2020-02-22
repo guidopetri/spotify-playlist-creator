@@ -49,7 +49,6 @@ class GetSavedTracks(Task):
 
             data = r.json()
             songs.extend(data['items'])
-            url = None  # currently testing
 
         albums = set(song['track']['album']['id']
                      for song in songs)
