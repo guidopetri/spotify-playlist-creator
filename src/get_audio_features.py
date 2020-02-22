@@ -487,6 +487,7 @@ class MergeTracks(Task):
 
 @requires(CleanArtists)
 class ArtistList(TransactionFactTable):
+    priority = 2
     pass
 
 
@@ -497,6 +498,7 @@ class GenreXArtistList(TransactionFactTable):
 
 @requires(CleanAlbums)
 class AlbumList(TransactionFactTable):
+    priority = 2
     pass
 
 
