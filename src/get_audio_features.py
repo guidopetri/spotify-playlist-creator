@@ -307,6 +307,7 @@ class CleanAlbums(Task):
     def run(self):
         import pickle
         from pandas import concat
+        from numpy import nan
 
         self.output().makedirs()
 
@@ -321,6 +322,7 @@ class CleanAlbums(Task):
 
         release_info = full_albums['release_date'].str.extractall(regex_pat)
         release_info = release_info.astype(float).astype('Int64')
+        release_info.fillna(nan, inplace=True)
 
         release_info.index = release_info.index.droplevel(1)
 

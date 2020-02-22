@@ -5,7 +5,6 @@ from luigi.contrib import postgres
 from luigi.parameter import Parameter, ListParameter, DictParameter
 from luigi.parameter import TaskParameter
 from luigi import Task
-from pandas import NA
 from numpy import nan
 
 
@@ -47,7 +46,7 @@ class TransactionFactTable(PostgresTable):
     merge_cols = DictParameter(default={})
 
     column_separator = '\t'
-    null_values = (None, NA, nan)
+    null_values = (None, nan)
 
     def requires(self):
         return self.clone(self.fn)
