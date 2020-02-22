@@ -181,10 +181,10 @@ class GetArtists(Task):
 
         self.output().makedirs()
 
-        with self.input()[2].open('r') as f:
+        with self.input()[0][2].open('r') as f:
             short_artists = pickle.load(f)
 
-        with self.input()[3].open('r') as f:
+        with self.input()[1].open('r') as f:
             artist_x_album = read_pickle(f, compression=None)
 
         access_token = check_for_refresh()
