@@ -67,6 +67,78 @@ class GetSavedTracks(Task):
             pickle.dump(artists, f, protocol=-1)
 
 
+@requires(GetSavedTracks)
+class GetAlbums(Task):
+
+    def output(self):
+        import os
+
+        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
+        return LocalTarget(file_location.format('full_albums'), format=Nop)
+
+    def run(self):
+        from requests import get
+        from more_itertools import chunked
+        from pandas import DataFrame
+        import pickle
+
+        self.output().makedirs()
+
+        with self.input()[1].open('r') as f:
+            short_albums = pickle.load(f)
+
+        access_token = check_for_refresh()
+
+        headers = {'Authorization': 'Bearer {}'.format(access_token)}
+        url = 'https://api.spotify.com/v1/albums'
+
+        albums = []
+        grouped = chunked(short_albums, 20)
+
+        for group in grouped:
+            params = {'ids': ','.join(album for album in group)}
+
+            for attempt in range(2):
+                access_token = check_for_refresh()
+
+                r = get(url, params=params, headers=headers)
+
+                if r.status_code == 200:
+                    break
+            else:  # no break
+                print('Error accessing url: {}'.format(url))
+                r.raise_for_status()
+
+            data = r.json()
+            albums.extend(data['albums'])
+
+        album_data = [(album['id'],
+                       album['name'],
+                       album['uri'],
+                       'US' in album['available_markets'],
+                       album['album_type'],
+                       album['release_date'],
+                       album['label'],
+                       album['genres'],
+                       [artist['id'] for artist in album['artists']])
+                      for album in albums]
+
+        full_albums = DataFrame(album_data,
+                                columns=['id',
+                                         'name',
+                                         'uri',
+                                         'available_in_us',
+                                         'album_type',
+                                         'release_date',
+                                         'label',
+                                         'genre',
+                                         'artist',
+                                         ])
+
+        with self.output().temporary_path() as temp_path:
+            full_albums.to_pickle(temp_path, compression=None)
+
+
 @requires(GetAlbums)
 class ExplodeArtistsAlbums(Task):
 
@@ -201,78 +273,6 @@ class CleanArtists(Task):
 
         with self.output().temporary_path() as temp_path:
             full_artists.to_pickle(temp_path, compression=None)
-
-
-@requires(GetSavedTracks)
-class GetAlbums(Task):
-
-    def output(self):
-        import os
-
-        file_location = os.path.expanduser('~/Temp/luigi/spotify/{}.pckl')
-        return LocalTarget(file_location.format('full_albums'), format=Nop)
-
-    def run(self):
-        from requests import get
-        from more_itertools import chunked
-        from pandas import DataFrame
-        import pickle
-
-        self.output().makedirs()
-
-        with self.input()[1].open('r') as f:
-            short_albums = pickle.load(f)
-
-        access_token = check_for_refresh()
-
-        headers = {'Authorization': 'Bearer {}'.format(access_token)}
-        url = 'https://api.spotify.com/v1/albums'
-
-        albums = []
-        grouped = chunked(short_albums, 20)
-
-        for group in grouped:
-            params = {'ids': ','.join(album for album in group)}
-
-            for attempt in range(2):
-                access_token = check_for_refresh()
-
-                r = get(url, params=params, headers=headers)
-
-                if r.status_code == 200:
-                    break
-            else:  # no break
-                print('Error accessing url: {}'.format(url))
-                r.raise_for_status()
-
-            data = r.json()
-            albums.extend(data['albums'])
-
-        album_data = [(album['id'],
-                       album['name'],
-                       album['uri'],
-                       'US' in album['available_markets'],
-                       album['album_type'],
-                       album['release_date'],
-                       album['label'],
-                       album['genres'],
-                       [artist['id'] for artist in album['artists']])
-                      for album in albums]
-
-        full_albums = DataFrame(album_data,
-                                columns=['id',
-                                         'name',
-                                         'uri',
-                                         'available_in_us',
-                                         'album_type',
-                                         'release_date',
-                                         'label',
-                                         'genre',
-                                         'artist',
-                                         ])
-
-        with self.output().temporary_path() as temp_path:
-            full_albums.to_pickle(temp_path, compression=None)
 
 
 @requires(GetAlbums)
