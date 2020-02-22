@@ -321,8 +321,8 @@ class CleanAlbums(Task):
                      r'(?P<release_day>\d{2})?$')
 
         release_info = full_albums['release_date'].str.extractall(regex_pat)
-        release_info = release_info.astype(float).astype('Int64')
-        release_info.fillna(nan, inplace=True)
+        # release_info = release_info.astype(float).astype('Int64')
+        release_info.fillna('\\N', inplace=True)
 
         release_info.index = release_info.index.droplevel(1)
 
