@@ -13,9 +13,9 @@ class HashableDict(OrderedDict):
 
 
 class PostgresTable(postgres.CopyToTable):
-    from configs import postgres_cfg
+    from configs import postgres_cfg_music
 
-    pg_cfg = postgres_cfg()
+    pg_cfg = postgres_cfg_music()
     user = pg_cfg.user
     password = pg_cfg.password
     host = pg_cfg.host
