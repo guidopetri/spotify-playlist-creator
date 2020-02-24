@@ -33,6 +33,8 @@ class GetSavedTracks(Task):
         error_url = None
 
         songs = []
+        albums = set()
+        artists = set()
 
         while url:
             access_token = check_for_refresh()
@@ -48,13 +50,25 @@ class GetSavedTracks(Task):
                 continue
 
             data = r.json()
-            songs.extend(data['items'])
 
-        albums = set(song['track']['album']['id']
-                     for song in songs)
+            song_data = [song['track'] for song in data['items']]
 
-        artists = set(artist['id'] for song in songs
-                      for artist in song['track']['artists'])
+            song_data = [(song['id'],
+                          song['name'],
+                          'US' in song['available_markets'],
+                          song['duration_ms'],
+                          song['explicit'],
+                          song['uri'],
+                          song['preview_url'])
+                         for song in song_data]
+            songs.extend(song_data)
+
+            albums.update(song['album']['id']
+                          for song in song_data)
+
+            artists.update(artist['id']
+                           for song in song_data
+                           for artist in song['artists'])
 
         with self.output()[0].open('w') as f:
             pickle.dump(songs, f, protocol=-1)
@@ -109,20 +123,19 @@ class GetAlbums(Task):
                 r.raise_for_status()
 
             data = r.json()
-            albums.extend(data['albums'])
 
-        album_data = [(album['id'],
-                       album['name'],
-                       album['uri'],
-                       'US' in album['available_markets'],
-                       album['album_type'],
-                       album['release_date'],
-                       album['label'],
-                       album['genres'],
-                       [artist['id'] for artist in album['artists']])
-                      for album in albums]
+            albums.extend([(album['id'],
+                            album['name'],
+                            album['uri'],
+                            'US' in album['available_markets'],
+                            album['album_type'],
+                            album['release_date'],
+                            album['label'],
+                            album['genres'],
+                            [artist['id'] for artist in album['artists']])
+                           for album in data['albums']])
 
-        full_albums = DataFrame(album_data,
+        full_albums = DataFrame(albums,
                                 columns=['id',
                                          'name',
                                          'uri',
@@ -211,15 +224,13 @@ class GetArtists(Task):
                 r.raise_for_status()
 
             data = r.json()
-            artists.extend(data['artists'])
+            artists.extend([(artist['id'],
+                             artist['name'],
+                             artist['uri'],
+                             artist['genres'])
+                            for artist in data['artists']])
 
-        artist_data = [(artist['id'],
-                        artist['name'],
-                        artist['uri'],
-                        artist['genres'])
-                       for artist in artists]
-
-        full_artists = DataFrame(artist_data,
+        full_artists = DataFrame(artists,
                                  columns=['id', 'name', 'uri', 'genre'])
 
         with self.output().temporary_path() as temp_path:
@@ -365,7 +376,7 @@ class GetAudioFeatures(Task):
         grouped = chunked(songs, 100)
 
         for group in grouped:
-            params = {'ids': ','.join(song['track']['id'] for song in group)}
+            params = {'ids': ','.join(song[0] for song in group)}
 
             for attempt in range(2):
                 access_token = check_for_refresh()
@@ -379,24 +390,23 @@ class GetAudioFeatures(Task):
                 r.raise_for_status()
 
             data = r.json()
-            audio_features.extend(data['audio_features'])
 
-        audio_data = [(song['id'],
-                       song['acousticness'],
-                       song['danceability'],
-                       song['energy'],
-                       song['instrumentalness'],
-                       song['key'],
-                       song['liveness'],
-                       song['loudness'],
-                       song['mode'],
-                       song['speechiness'],
-                       song['tempo'],
-                       song['time_signature'],
-                       song['valence'])
-                      for song in audio_features]
+            audio_features.extend([(song['id'],
+                                    song['acousticness'],
+                                    song['danceability'],
+                                    song['energy'],
+                                    song['instrumentalness'],
+                                    song['key'],
+                                    song['liveness'],
+                                    song['loudness'],
+                                    song['mode'],
+                                    song['speechiness'],
+                                    song['tempo'],
+                                    song['time_signature'],
+                                    song['valence'])
+                                   for song in data['audio_features']])
 
-        audio_data_df = DataFrame(audio_data,
+        audio_data_df = DataFrame(audio_features,
                                   columns=['id',
                                            'acousticness',
                                            'danceability',
@@ -433,18 +443,7 @@ class CleanTracks(Task):
         with self.input()[0].open('r') as f:
             songs = pickle.load(f)
 
-        songs = [song['track'] for song in songs]
-
-        song_data = [(song['id'],
-                      song['name'],
-                      'US' in song['available_markets'],
-                      song['duration_ms'],
-                      song['explicit'],
-                      song['uri'],
-                      song['preview_url'])
-                     for song in songs]
-
-        song_data_df = DataFrame(song_data,
+        song_data_df = DataFrame(songs,
                                  columns=['id',
                                           'name',
                                           'available_in_us',
