@@ -53,6 +53,13 @@ class GetSavedTracks(Task):
 
             song_data = [song['track'] for song in data['items']]
 
+            albums.update(song['album']['id']
+                          for song in song_data)
+
+            artists.update(artist['id']
+                           for song in song_data
+                           for artist in song['artists'])
+
             song_data = [(song['id'],
                           song['name'],
                           'US' in song['available_markets'],
@@ -61,14 +68,8 @@ class GetSavedTracks(Task):
                           song['uri'],
                           song['preview_url'])
                          for song in song_data]
+
             songs.extend(song_data)
-
-            albums.update(song['album']['id']
-                          for song in song_data)
-
-            artists.update(artist['id']
-                           for song in song_data
-                           for artist in song['artists'])
 
         with self.output()[0].open('w') as f:
             pickle.dump(songs, f, protocol=-1)
