@@ -36,6 +36,7 @@ class GetSavedTracks(Task):
 
         while url:
             access_token = check_for_refresh()
+            headers = {'Authorization': 'Bearer {}'.format(access_token)}
 
             r = get(url, params=params, headers=headers)
 
