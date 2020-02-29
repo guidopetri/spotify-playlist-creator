@@ -36,7 +36,7 @@ class GetSavedTracks(Task):
         albums = set()
         artists = set()
 
-        while url:
+        while url is not None:
             access_token = check_for_refresh()
             headers = {'Authorization': 'Bearer {}'.format(access_token)}
 
@@ -71,6 +71,7 @@ class GetSavedTracks(Task):
                          for song in song_data]
 
             songs.extend(song_data)
+            url = data['next']
 
         with self.output()[0].open('w') as f:
             pickle.dump(songs, f, protocol=-1)
