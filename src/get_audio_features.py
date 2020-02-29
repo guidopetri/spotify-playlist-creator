@@ -100,6 +100,7 @@ class GetAlbums(Task):
 
             for attempt in range(2):
                 access_token = check_for_refresh()
+                headers = {'Authorization': 'Bearer {}'.format(access_token)}
 
                 r = get(url, params=params, headers=headers)
 
@@ -202,6 +203,7 @@ class GetArtists(Task):
 
             for attempt in range(2):
                 access_token = check_for_refresh()
+                headers = {'Authorization': 'Bearer {}'.format(access_token)}
 
                 r = get(url, params=params, headers=headers)
 
@@ -370,6 +372,7 @@ class GetAudioFeatures(Task):
 
             for attempt in range(2):
                 access_token = check_for_refresh()
+                headers = {'Authorization': 'Bearer {}'.format(access_token)}
 
                 r = get(url, params=params, headers=headers)
 
