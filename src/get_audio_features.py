@@ -30,25 +30,23 @@ class GetSavedTracks(Task):
         headers = {'Authorization': 'Bearer {}'.format(access_token)}
         url = 'https://api.spotify.com/v1/me/tracks'
         params = {'limit': 50}
-        error_url = None
 
         songs = []
         albums = set()
         artists = set()
 
         while url is not None:
-            access_token = check_for_refresh()
-            headers = {'Authorization': 'Bearer {}'.format(access_token)}
+            for attempt in range(2):
+                access_token = check_for_refresh()
+                headers = {'Authorization': 'Bearer {}'.format(access_token)}
 
-            r = get(url, params=params, headers=headers)
+                r = get(url, params=params, headers=headers)
 
-            if r.status_code != 200:
-                if error_url == url:
-                    r.raise_for_status()
+                if r.status_code == 200:
+                    break
+            else:  # no break
                 print('Error accessing url: {}'.format(url))
-                error_url = url
-                time.sleep(1)
-                continue
+                r.raise_for_status()
 
             data = r.json()
 
