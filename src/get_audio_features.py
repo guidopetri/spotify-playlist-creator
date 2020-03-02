@@ -48,13 +48,13 @@ class GetSavedTracks(Task):
 
             data = r.json()
             songs.extend(data['items'])
+            url = data['next']
 
         albums = set(song['track']['album']['id']
                      for song in songs)
 
         artists = set(artist['id'] for song in songs
                       for artist in song['track']['artists'])
-        url = data['next']
 
         with self.output()[0].open('w') as f:
             pickle.dump(songs, f, protocol=-1)
