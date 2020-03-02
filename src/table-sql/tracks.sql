@@ -1,6 +1,7 @@
 create table tracks(
 id text primary key,
 name text not null,
+main_artist text references artists(id),
 available_in_us boolean not null,
 duration_ms int not null,
 explicit boolean not null,
