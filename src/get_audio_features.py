@@ -440,6 +440,7 @@ class CleanTracks(Task):
 
         song_data = [(song['id'],
                       song['name'],
+                      song['artists'][0]['id'],
                       'US' in song['available_markets'],
                       song['duration_ms'],
                       song['explicit'],
@@ -450,6 +451,7 @@ class CleanTracks(Task):
         song_data_df = DataFrame(song_data,
                                  columns=['id',
                                           'name',
+                                          'main_artist',
                                           'available_in_us',
                                           'duration_ms',
                                           'explicit',
@@ -588,6 +590,7 @@ class CopyTracks(CopyWrapper):
              'table': 'tracks',
              'columns': ['id',
                          'name',
+                         'main_artist',
                          'available_in_us',
                          'duration_ms',
                          'explicit',
