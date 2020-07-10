@@ -3,3 +3,4 @@ secrets.cfg
 *.sublime-project
 *.sublime-workspace
 __pycache__/
+*.csv
