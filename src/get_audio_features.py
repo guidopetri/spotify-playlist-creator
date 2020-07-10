@@ -21,7 +21,6 @@ class GetSavedTracks(Task):
     def run(self):
         from requests import get
         import pickle
-        import time
 
         [x.makedirs() for x in self.output()]
 
@@ -313,7 +312,6 @@ class CleanAlbums(Task):
     def run(self):
         import pickle
         from pandas import concat
-        from numpy import nan
 
         self.output().makedirs()
 
