@@ -123,7 +123,7 @@ class GetTracksByPlaylist(Task):
         return LocalTarget(file_location.format('tracks_playlists'),
                            format=Nop)
 
-    def requires(self):
+    def run(self):
         from requests import get
         from itertools import cycle
         import pickle
