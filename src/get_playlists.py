@@ -161,7 +161,9 @@ class GetTracksByPlaylist(Task):
 
                 url = data['next']
 
-            playlist_tracks.append(zip(cycle([playlist['name']]), tracks))
+            playlist_tracks.append([x
+                                    for x in zip(cycle([playlist['name']]),
+                                                 tracks)])
 
         playlists_df = DataFrame(playlist_tracks,
                                  columns=['genre_name', 'track_id'])
