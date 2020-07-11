@@ -161,7 +161,7 @@ class GetTracksByPlaylist(Task):
 
                 url = data['next']
 
-            playlist_tracks.append([x
+            playlist_tracks.extend([x
                                     for x in zip(cycle([playlist['name']]),
                                                  tracks)])
 
