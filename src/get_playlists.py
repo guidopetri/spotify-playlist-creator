@@ -187,7 +187,7 @@ class CopyTracks(CopyWrapper):
 
     jobs = [{'table_type': PlaylistXTracksList,
              'fn': GetTracksByPlaylist,
-             'table': 'playlist_x_tracks',
+             'table': 'playlists_x_tracks',
              'columns': ['track_id',
                          'genre_name',
                          ],
